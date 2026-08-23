@@ -87,6 +87,24 @@ export URIMAI_MODEL=llama-3.3-70b-versatile
 The audio route returns **503 when no transcription backend is configured**, rather than
 pretending to have heard something.
 
+### Voice input
+
+Two backends, tried in order:
+
+```bash
+# 1. Hosted (Groq whisper-large-v3) - handles Tamil well, nothing to install
+export URIMAI_STT_KEY=gsk_...
+
+# 2. Local, no network, audio never leaves the machine
+pip install faster-whisper
+```
+
+`GET /api/health` reports `"transcription": "ready" | "not configured"`. Language
+defaults to Tamil (`URIMAI_STT_LANG=ta`); set it empty to auto-detect.
+
+A fabricated transcript becomes a fabricated eligibility result, so when no backend is
+available the API fails loudly instead of guessing.
+
 ---
 
 ## Layout
@@ -124,14 +142,22 @@ exact users this serves:
 The second one is the more instructive: an English-only test suite would have passed
 completely while the feature was broken for its entire intended audience.
 
+3. **A 65-year-old widow was offered a girls' higher-education scholarship.** Not a
+   logic error - three-valued logic did exactly what it should, since her student status
+   was unknown. But "correct" and "sane" are different bars, and one absurd row
+   discredits every sound row beside it. Fixed with an explicit *plausibility* bound,
+   documented as such in the scheme data so nobody mistakes it for a statutory rule.
+
 ---
 
 ## Status and limits
 
-- 16 tests passing; engine and API verified end-to-end with Tamil input.
+- 17 tests passing; engine and API verified end-to-end with Tamil input.
 - **The scheme data is a prior, not an authority.** 10 schemes are encoded; guidelines
   change and local implementation varies. Verify against the linked source before relying
   on any result.
-- Transcription is pluggable and not yet wired to a default backend.
+- Transcription is wired but unverified against real Tamil speech - the backends are
+  implemented and the error paths tested, but no recorded audio has been run through
+  them yet. Treat voice input as untested until that happens.
 - Eligibility for SECC-based schemes (Ayushman Bharat) is approximated by a BPL flag; the
   real criteria are deprivation indicators this profile does not capture.

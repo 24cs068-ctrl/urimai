@@ -70,7 +70,12 @@ def _merge(base: Optional[Applicant], extracted: Applicant) -> Applicant:
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok", "schemes": len(load_schemes())}
+    from .transcribe import available as stt_available
+    return {
+        "status": "ok",
+        "schemes": len(load_schemes()),
+        "transcription": "ready" if stt_available() else "not configured",
+    }
 
 
 @app.get("/api/schemes")
@@ -99,14 +104,25 @@ def assess_text(req: TextRequest) -> AssessResponse:
 
 @app.post("/api/assess/audio", response_model=AssessResponse)
 async def assess_audio(file: UploadFile = File(...)) -> AssessResponse:
-    try:
-        from .transcribe import transcribe
-    except ImportError:
-        raise HTTPException(503, "No transcription backend installed. See README.")
+    from .transcribe import TranscriptionUnavailable, transcribe
 
     audio = await file.read()
-    text = transcribe(audio, filename=file.filename or "audio.ogg")
+    if not audio:
+        raise HTTPException(400, "empty audio upload")
+
+    try:
+        text = transcribe(audio, filename=file.filename or "audio.ogg")
+    except TranscriptionUnavailable as exc:
+        raise HTTPException(
+            503,
+            "No transcription backend configured. Set URIMAI_STT_KEY (Groq) or "
+            f"pip install faster-whisper. Detail: {exc}",
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
     if not text:
-        raise HTTPException(422, "Could not transcribe the audio.")
+        raise HTTPException(422, "Audio produced an empty transcript.")
+
     applicant = get_extractor().extract(text)
     return AssessResponse(assessment=assess(applicant, transcript=text))

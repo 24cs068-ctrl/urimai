@@ -169,12 +169,19 @@ schemes:
     verify_at_en: "College scholarship section or the school headmaster"
     verify_at_ta: "கல்லூரி உதவித்தொகைப் பிரிவு அல்லது பள்ளித் தலைமையாசிரியர்"
     source: "https://penkalvi.tn.gov.in"
-    notes_en: "Requires classes 6-12 studied in a government school."
+    notes_en: >-
+      Requires classes 6-12 studied in a government school. The upper age bound below
+      is a PLAUSIBILITY bound, not a statutory one: the scheme targets girls entering
+      higher education after class 12. Without it, a 65-year-old whose student status
+      is simply unknown surfaces as a candidate for a girls' scholarship, which
+      destroys a user's trust in every other result on the page.
     rules:
       - field: state
         eq: TN
       - field: gender
         eq: female
+      - field: age
+        max: 35
       - field: is_student
         is_true: true
       - field: studied_in_govt_school

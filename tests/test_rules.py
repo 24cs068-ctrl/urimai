@@ -84,3 +84,12 @@ def test_every_scheme_declares_verification_route(schemes):
 def test_bilingual_parity(schemes):
     for s in schemes:
         assert s.get("name_ta") and s.get("benefit_ta")
+
+
+def test_elderly_widow_not_offered_girls_scholarship(schemes):
+    """Regression: an unknown `is_student` on a 65-year-old must not surface a
+    scholarship aimed at girls entering higher education. Three-valued logic is
+    correct in principle but produces absurd output without plausibility bounds,
+    and one absurd row discredits the whole result set."""
+    a = Applicant(age=65, gender="female", marital_status="widowed", state="TN")
+    assert _by_id(assess(a, schemes).results, "tn-moovalur").verdict is Verdict.UNLIKELY

@@ -1,0 +1,198 @@
+# Welfare scheme eligibility priors.
+#
+# IMPORTANT: every rule here is a HAND-CURATED PRIOR, transcribed from public scheme
+# guidelines. Guidelines change, states amend criteria, and local implementation varies.
+# Nothing in this file establishes entitlement. The engine deliberately reports
+# "likely eligible / possibly eligible" and always names a place to verify.
+#
+# Field reference for `rules` conditions:
+#   min / max          numeric bounds (inclusive)
+#   eq                 exact match
+#   in                 membership in a list
+#   is_true / is_false boolean assertions
+# A rule whose subject field is missing from the applicant profile is UNKNOWN,
+# not False. Unknowns are surfaced as follow-up questions, never silently failed.
+
+schemes:
+  - id: pm-kisan
+    name_en: PM-KISAN Samman Nidhi
+    name_ta: பிரதம மந்திரி கிசான் சம்மான் நிதி
+    benefit_en: "Rs 6,000 per year, paid in three instalments of Rs 2,000"
+    benefit_ta: "ஆண்டுக்கு ரூ.6,000, மூன்று தவணைகளாக"
+    level: central
+    verify_at_en: "Village Administrative Officer (VAO) or pmkisan.gov.in"
+    verify_at_ta: "கிராம நிர்வாக அலுவலர் (VAO) அல்லது pmkisan.gov.in"
+    source: "https://pmkisan.gov.in"
+    rules:
+      - field: is_farmer
+        is_true: true
+      - field: land_acres
+        min: 0.01
+    exclusions:
+      - field: pays_income_tax
+        is_true: true
+        reason_en: "Income-tax payers are excluded from PM-KISAN"
+        reason_ta: "வருமான வரி செலுத்துபவர்கள் விலக்கப்படுகிறார்கள்"
+
+  - id: ignoaps
+    name_en: Indira Gandhi National Old Age Pension (IGNOAPS)
+    name_ta: இந்திரா காந்தி தேசிய முதியோர் ஓய்வூதியம்
+    benefit_en: "Monthly pension; amount varies by age band and state top-up"
+    benefit_ta: "மாதாந்திர ஓய்வூதியம்; வயது மற்றும் மாநில கூடுதல் தொகையைப் பொறுத்து"
+    level: central
+    verify_at_en: "Taluk office or e-Sevai centre"
+    verify_at_ta: "வட்டாட்சியர் அலுவலகம் அல்லது இ-சேவை மையம்"
+    source: "https://nsap.nic.in"
+    rules:
+      - field: age
+        min: 60
+      - field: is_bpl
+        is_true: true
+
+  - id: ignwps
+    name_en: Indira Gandhi National Widow Pension (IGNWPS)
+    name_ta: இந்திரா காந்தி தேசிய விதவை ஓய்வூதியம்
+    benefit_en: "Monthly widow pension for BPL households"
+    benefit_ta: "வறுமைக் கோட்டிற்குக் கீழ் உள்ள விதவைகளுக்கு மாதாந்திர ஓய்வூதியம்"
+    level: central
+    verify_at_en: "Taluk office or e-Sevai centre"
+    verify_at_ta: "வட்டாட்சியர் அலுவலகம் அல்லது இ-சேவை மையம்"
+    source: "https://nsap.nic.in"
+    rules:
+      - field: age
+        min: 40
+        max: 79
+      - field: gender
+        eq: female
+      - field: marital_status
+        eq: widowed
+      - field: is_bpl
+        is_true: true
+
+  - id: igndps
+    name_en: Indira Gandhi National Disability Pension (IGNDPS)
+    name_ta: இந்திரா காந்தி தேசிய மாற்றுத்திறனாளி ஓய்வூதியம்
+    benefit_en: "Monthly pension for persons with severe disability"
+    benefit_ta: "கடுமையான மாற்றுத்திறன் உள்ளவர்களுக்கு மாதாந்திர ஓய்வூதியம்"
+    level: central
+    verify_at_en: "Taluk office; requires a disability certificate"
+    verify_at_ta: "வட்டாட்சியர் அலுவலகம்; மாற்றுத்திறன் சான்றிதழ் தேவை"
+    source: "https://nsap.nic.in"
+    rules:
+      - field: age
+        min: 18
+        max: 79
+      - field: disability_percent
+        min: 80
+      - field: is_bpl
+        is_true: true
+
+  - id: ayushman-bharat
+    name_en: Ayushman Bharat PM-JAY
+    name_ta: ஆயுஷ்மான் பாரத் பிரதம மந்திரி ஜன ஆரோக்ய திட்டம்
+    benefit_en: "Up to Rs 5 lakh per family per year of cashless hospital cover"
+    benefit_ta: "ஆண்டுக்கு ஒரு குடும்பத்திற்கு ரூ.5 லட்சம் வரை பணமில்லா மருத்துவ காப்பீடு"
+    level: central
+    verify_at_en: "Any empanelled hospital, or check at pmjay.gov.in"
+    verify_at_ta: "பட்டியலிடப்பட்ட மருத்துவமனை அல்லது pmjay.gov.in"
+    source: "https://pmjay.gov.in"
+    notes_en: "Eligibility is decided by SECC deprivation criteria, not income alone."
+    rules:
+      - field: is_bpl
+        is_true: true
+
+  - id: ujjwala
+    name_en: Pradhan Mantri Ujjwala Yojana (LPG connection)
+    name_ta: பிரதம மந்திரி உஜ்ஜ்வலா திட்டம்
+    benefit_en: "Deposit-free LPG connection with first refill and stove support"
+    benefit_ta: "வைப்புத்தொகை இல்லாத எரிவாயு இணைப்பு"
+    level: central
+    verify_at_en: "Nearest LPG distributor"
+    verify_at_ta: "அருகிலுள்ள எரிவாயு விநியோகஸ்தர்"
+    source: "https://pmuy.gov.in"
+    rules:
+      - field: gender
+        eq: female
+      - field: age
+        min: 18
+      - field: is_bpl
+        is_true: true
+      - field: has_lpg_connection
+        is_false: true
+
+  - id: tn-magalir-urimai
+    name_en: Kalaignar Magalir Urimai Thogai
+    name_ta: கலைஞர் மகளிர் உரிமைத் தொகை
+    benefit_en: "Rs 1,000 per month to eligible women heads of family"
+    benefit_ta: "தகுதியான குடும்பத் தலைவிகளுக்கு மாதம் ரூ.1,000"
+    level: state
+    state: TN
+    verify_at_en: "Ration shop area office or e-Sevai centre"
+    verify_at_ta: "நியாய விலைக் கடை பகுதி அலுவலகம் அல்லது இ-சேவை மையம்"
+    source: "https://kmut.tn.gov.in"
+    rules:
+      - field: state
+        eq: TN
+      - field: gender
+        eq: female
+      - field: age
+        min: 21
+    exclusions:
+      - field: pays_income_tax
+        is_true: true
+        reason_en: "Income-tax paying households are excluded"
+        reason_ta: "வருமான வரி செலுத்தும் குடும்பங்கள் விலக்கப்படுகின்றன"
+
+  - id: tn-free-bus
+    name_en: Tamil Nadu free bus travel for women
+    name_ta: தமிழ்நாடு மகளிர் இலவச பேருந்து பயணம்
+    benefit_en: "Free travel in ordinary town and mofussil buses"
+    benefit_ta: "சாதாரண நகர மற்றும் மாவட்டப் பேருந்துகளில் இலவசப் பயணம்"
+    level: state
+    state: TN
+    verify_at_en: "No application needed; board any eligible bus"
+    verify_at_ta: "விண்ணப்பம் தேவையில்லை"
+    source: "https://tnstc.in"
+    rules:
+      - field: state
+        eq: TN
+      - field: gender
+        eq: female
+
+  - id: tn-moovalur
+    name_en: Moovalur Ramamirtham Ammaiyar Higher Education Assurance
+    name_ta: மூவலூர் ராமாமிர்தம் அம்மையார் உயர்கல்வி உறுதித் திட்டம்
+    benefit_en: "Rs 1,000 per month to girls pursuing higher education"
+    benefit_ta: "உயர்கல்வி பயிலும் மாணவிகளுக்கு மாதம் ரூ.1,000"
+    level: state
+    state: TN
+    verify_at_en: "College scholarship section or the school headmaster"
+    verify_at_ta: "கல்லூரி உதவித்தொகைப் பிரிவு அல்லது பள்ளித் தலைமையாசிரியர்"
+    source: "https://penkalvi.tn.gov.in"
+    notes_en: "Requires classes 6-12 studied in a government school."
+    rules:
+      - field: state
+        eq: TN
+      - field: gender
+        eq: female
+      - field: is_student
+        is_true: true
+      - field: studied_in_govt_school
+        is_true: true
+
+  - id: pmay-g
+    name_en: Pradhan Mantri Awas Yojana (Gramin)
+    name_ta: பிரதம மந்திரி வீட்டுவசதி திட்டம் (கிராமப்புறம்)
+    benefit_en: "Assistance to construct a pucca house"
+    benefit_ta: "நிரந்தர வீடு கட்ட நிதி உதவி"
+    level: central
+    verify_at_en: "Panchayat office"
+    verify_at_ta: "ஊராட்சி அலுவலகம்"
+    source: "https://pmayg.nic.in"
+    rules:
+      - field: is_bpl
+        is_true: true
+      - field: owns_pucca_house
+        is_false: true
+      - field: area_type
+        eq: rural

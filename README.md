@@ -152,12 +152,28 @@ completely while the feature was broken for its entire intended audience.
 
 ## Status and limits
 
-- 17 tests passing; engine and API verified end-to-end with Tamil input.
+- 30 tests passing; engine and API verified end-to-end with Tamil input.
 - **The scheme data is a prior, not an authority.** 10 schemes are encoded; guidelines
   change and local implementation varies. Verify against the linked source before relying
   on any result.
-- Transcription is wired but unverified against real Tamil speech - the backends are
-  implemented and the error paths tested, but no recorded audio has been run through
-  them yet. Treat voice input as untested until that happens.
+- **Voice input has now been run end-to-end against Tamil audio** (2026-08-24), using the
+  local `faster-whisper` backend on synthesised Tamil speech. It works, and running it
+  found three real bugs that every English test had passed straight through:
+  - Spoken numbers were dropped. The age pattern required digits, but speech yields
+    `அறுபத்தி ஐந்து`, never `65`. This is the same English-shaped assumption as the
+    original ``-after-`வயது` fault, one layer up. `urimai/numerals.py` now parses
+    Tamil cardinals, including sandhi-fused forms like `இருபத்தியிரண்டு` (22).
+  - The state was never extracted from Tamil at all. The pattern ended in ``, and
+    `தமிழ்நாடு` ends in the combining mark `ு` - so the *original bug was still live in a
+    second place*, untouched by the fix that made it famous. It now matches the stem, so
+    inflected speech (`தமிழ்நாட்டில்`) is recognised too.
+  - Household income was in the LLM schema but the heuristic never filled it, leaving
+    every means-tested scheme permanently on "unknown" whenever the model was off.
+- **Known limit: transcription accuracy is the ceiling now, not parsing.** On the `small`
+  model, `தமிழ்நாட்டில்` came back as `தமர் நாட்டில்` and an age as `அறுபத்தேன்து`. The
+  parser handles both correctly once transcribed correctly. Use `URIMAI_STT_KEY` with
+  Groq `whisper-large-v3`, or set `URIMAI_STT_LOCAL_MODEL=medium`, for real deployments.
+- **Still untested against a human speaker.** The audio above was synthesised. Real
+  speakers bring accent, noise and dialect that TTS does not.
 - Eligibility for SECC-based schemes (Ayushman Bharat) is approximated by a BPL flag; the
   real criteria are deprivation indicators this profile does not capture.

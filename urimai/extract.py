@@ -16,6 +16,7 @@ from typing import Optional, Protocol
 import httpx
 
 from .models import Applicant
+from .numerals import find_quantities
 
 SYSTEM_PROMPT = """You extract structured facts from a citizen describing their situation,
 often in Tamil or Tanglish. Return ONLY a JSON object with any of these keys you can
@@ -45,6 +46,37 @@ class HeuristicExtractor:
     TAMIL_FEMALE = ("பெண", "மகள", "விதவை", "அம்மா")
     TAMIL_MALE = ("ஆண", "மகன")
 
+    # How far a number may sit from the word it describes. Speech often drops the
+    # punctuation that would otherwise bound a clause, so proximity — not clause
+    # membership — is what ties a value to its label.
+    _MAX_GAP = 25
+
+    def _quantity_near(self, text: str, *keywords: str) -> Optional[float]:
+        """The quantity nearest any keyword, within `_MAX_GAP` characters.
+
+        Clause-splitting was tried first and was wrong: Whisper frequently returns an
+        utterance with no punctuation at all, so "age 22 ... income fifty thousand"
+        collapsed into one clause and the AGE was read as the income. Attaching a
+        number to the nearest label instead keeps the two apart.
+        """
+        low = (text or "").lower()
+        spots: list[int] = []
+        for kw in keywords:
+            start = 0
+            while (i := low.find(kw.lower(), start)) != -1:
+                spots.append(i)
+                start = i + 1
+        if not spots:
+            return None
+
+        best: Optional[tuple[int, float]] = None
+        for qs, qe, val in find_quantities(text):
+            for s in spots:
+                gap = qs - s if qs > s else s - qe
+                if gap <= self._MAX_GAP and (best is None or gap < best[0]):
+                    best = (gap, val)
+        return best[1] if best else None
+
     def extract(self, text: str) -> Applicant:
         t = text.lower()
         data: dict = {}
@@ -52,10 +84,19 @@ class HeuristicExtractor:
         # NOTE: no trailing \b here. Tamil "வயது" ends in a combining vowel mark,
         # which Python's \w does not treat as a word character, so \b would never
         # match and every Tamil age would be silently dropped.
+        #
+        # The digit-only form was a SECOND instance of the same English-shaped
+        # assumption: speech yields "அறுபத்தி ஐந்து", never "65", so every SPOKEN
+        # age was still dropped after the \b fix. Words are parsed as a fallback.
+        age_val = None
         if m := re.search(r"(\d{1,3})\s*(?:years?|வயது|vayasu|age)", t):
-            age = int(m.group(1))
-            if 0 < age <= 120:
-                data["age"] = age
+            age_val = int(m.group(1))
+        else:
+            q = self._quantity_near(text, "வயது", "vayasu", "years", "age")
+            if q is not None:
+                age_val = int(q)
+        if age_val is not None and 0 < age_val <= 120:
+            data["age"] = age_val
 
         if any(w in text for w in self.TAMIL_FEMALE) or re.search(r"\b(female|woman|wife)\b", t):
             data["gender"] = "female"
@@ -65,8 +106,13 @@ class HeuristicExtractor:
         if "விதவை" in text or "widow" in t:
             data["marital_status"] = "widowed"
 
+        acres = None
         if m := re.search(r"(\d+(?:\.\d+)?)\s*(?:acres?|ஏக்கர்|ekkar)", t):
-            data["land_acres"] = float(m.group(1))
+            acres = float(m.group(1))
+        else:
+            acres = self._quantity_near(text, "ஏக்கர்", "ekkar", "acre")
+        if acres is not None and acres >= 0:
+            data["land_acres"] = acres
             data["is_farmer"] = True
         elif re.search(r"\b(farmer|farming|விவசாய|vivasayam)\b", t):
             data["is_farmer"] = True
@@ -76,10 +122,23 @@ class HeuristicExtractor:
             if 0 <= pct <= 100:
                 data["disability_percent"] = pct
 
-        if re.search(r"\b(tamil ?nadu|தமிழ்நாடு|tn)\b", t):
+        # The trailing \b here was the ORIGINAL வயது bug surviving in a SECOND place:
+        # "தமிழ்நாடு" ends in the combining mark ு, so \b could never match and the
+        # state was never set from Tamil at all. Speech also inflects the stem
+        # ("தமிழ்நாட்டில்"), so match the stem rather than the citation form.
+        if re.search(r"தமிழ்நாட|tamil ?nadu|\btn\b", t):
             data["state"] = "TN"
 
-        if re.search(r"\b(student|studying|படிக்கிற|college|school)\b", t):
+        # Income was in the LLM schema but the heuristic never filled it, so every
+        # means-tested scheme sat permanently on "unknown" whenever the model was off.
+        income = self._quantity_near(text, "வருமானம்", "ரூபாய்", "income", "rupees", "salary")
+        if income is not None and income > 0:
+            monthly = re.search(r"மாத|month", t)
+            data["annual_income"] = int(income * 12) if monthly else int(income)
+
+        if re.search(r"\b(student|studying|college|school)\b", t) or re.search(
+            r"படிக்கிற|கல்லூரி|பள்ளி|மாணவ", text
+        ):
             data["is_student"] = True
 
         return Applicant(**data)
